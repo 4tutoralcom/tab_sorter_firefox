@@ -1,0 +1,26 @@
+{
+    "manifest_version": 2,
+    "name": "YouTube Tab Mover",
+    "version": "1.0",
+    "description": "Automatically moves YouTube tabs to a separate window for videos.",
+    "permissions": ["tabs","storage"],
+    "background": {
+      "scripts": ["dist/background.js"],
+      "persistent": false
+    },
+    "icons": {
+      "48": "icon.png"
+    },
+    "browser_action": {
+      "default_popup": "popup.html",
+      "default_icon": {
+        "48": "icon.png"
+      }
+    },
+    "applications": {
+        "gecko": {
+            "id": "andrew@thedittmann.com"
+        }
+    }
+  }
+  
