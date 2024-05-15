@@ -11,16 +11,22 @@ class TabsGroup {
   constructor() {}
 
   public addTabToList(windowId: number, tabId: number) {
-    let existing_window = this.windowTabList.findIndex((e) => e.windowId == windowId);
+    let existing_window = this.windowTabList.findIndex(
+      (e) => e.windowId == windowId
+    );
     if (existing_window >= 0) {
       tabId && this.windowTabList[existing_window].tabs.push(tabId);
     } else {
-      windowId && tabId && this.windowTabList.push({ windowId: windowId, tabs: [tabId] });
+      windowId &&
+        tabId &&
+        this.windowTabList.push({ windowId: windowId, tabs: [tabId] });
     }
   }
 
   public isTabInList(windowId: number, tabId: number) {
-    let existing_window = this.windowTabList.findIndex((e) => e.windowId == windowId);
+    let existing_window = this.windowTabList.findIndex(
+      (e) => e.windowId == windowId
+    );
     if (existing_window >= 0) {
       return this.windowTabList[existing_window].tabs;
     }
@@ -37,7 +43,11 @@ getURLsFromStorage((all_urls) => {
   URLS = all_urls;
 });
 
-function moveTabToWindow(windowId: number, tab: browser.tabs.Tab, index: number = -1): void {
+function moveTabToWindow(
+  windowId: number,
+  tab: browser.tabs.Tab,
+  index: number = -1
+): void {
   console.log(MOVED_TABS.windowTabList);
   console.log("windowId", windowId);
   console.log("tab_ID", tab.id);
@@ -59,26 +69,39 @@ function moveTabToWindow(windowId: number, tab: browser.tabs.Tab, index: number 
   }
 }
 
-function findTargetWindow(currnetWindowId: number, tab: browser.tabs.Tab, found_urls: string[]): void {
+function findTargetWindow(
+  currentWindowId: number,
+  tab: browser.tabs.Tab,
+  found_urls: string[],
+  found_url: string
+): void {
   browser.windows.getAll({ populate: true }).then((windows) => {
     windows.some((window) => {
       if (window.tabs) {
-
-        const foundTabs = window.tabs.filter((tab) => {
-          return found_urls.some((found_url) => {
-            return tab.url && tab.url.includes(found_url);
+        let foundTabs = window.tabs.filter(
+          (tab) => tab.url && tab.url.includes(found_url)
+        );
+        if (foundTabs.length == 0) {
+          foundTabs = window.tabs.filter((tab) => {
+            return found_urls.some((found_url) => {
+              return tab.url && tab.url.includes(found_url);
+            });
           });
-        });
+        }
 
         console.log(`foundTabs `, foundTabs, "\n found urls", found_urls);
-        /*console.log("currnetWindowId", currnetWindowId, "window.id", window.id);*/
+        /*console.log("currentWindowId", currentWindowId, "window.id", window.id);*/
         // Check if this window contains a YouTube tab
         const hasYouTubeTab = foundTabs.length > 0;
-        const isCurrentWindow = currnetWindowId == window.id;
+        const isCurrentWindow = currentWindowId == window.id;
 
         if (hasYouTubeTab && !isCurrentWindow) {
           if (window.id) {
-            moveTabToWindow(window.id, tab, foundTabs[foundTabs.length - 1].index + 1);
+            moveTabToWindow(
+              window.id,
+              tab,
+              foundTabs[foundTabs.length - 1].index + 1
+            );
             return true;
           }
           return false;
@@ -90,7 +113,11 @@ function findTargetWindow(currnetWindowId: number, tab: browser.tabs.Tab, found_
 }
 
 browser.tabs.onUpdated.addListener(
-  (tabId: number, changeInfo: browser.tabs._OnUpdatedChangeInfo, tab: browser.tabs.Tab) => {
+  (
+    tabId: number,
+    changeInfo: browser.tabs._OnUpdatedChangeInfo,
+    tab: browser.tabs.Tab
+  ) => {
     //console.log('onUpdated',tab);
     //let existing_window=all_new_tabs.findIndex((e)=>e.windowId==tab.windowId)
     let passCheck = true;
@@ -114,9 +141,12 @@ function check(tab: browser.tabs.Tab) {
     let found_urls = url_group.split(",");
     return found_urls.some((url) => {
       console.log("trying to find ", url);
-      if ((tab.url && tab.url.includes(url)) || (tab.title && tab.title.includes(url))) {
+      if (
+        (tab.url && tab.url.includes(url)) ||
+        (tab.title && tab.title.includes(url))
+      ) {
         if (tab.windowId && tab.id) {
-          findTargetWindow(tab.windowId, tab, found_urls);
+          findTargetWindow(tab.windowId, tab, found_urls, url);
           return true;
         }
       }
@@ -157,10 +187,12 @@ function getURLsFromStorage(callback: (urls: string[]) => void): void {
 
 // Handler for messages from popup
 if (typeof browser !== "undefined" && browser.runtime) {
-  browser.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-    if (message.action === "saveURLs") {
-      URLS = message.urls || [];
-      saveURLsToStorage(URLS);
+  browser.runtime.onMessage.addListener(
+    (message: Message, sender, sendResponse) => {
+      if (message.action === "saveURLs") {
+        URLS = message.urls || [];
+        saveURLsToStorage(URLS);
+      }
     }
-  });
+  );
 }
