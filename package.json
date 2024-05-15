@@ -4,7 +4,8 @@
   "description": "",
   "main": "background.js",
   "scripts": {
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "build": "npm run tsc"
   },
   "keywords": [],
   "author": "",

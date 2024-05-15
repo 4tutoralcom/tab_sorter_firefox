@@ -2,21 +2,48 @@ function moveTabToWindow(windowId: number, tabID: number, index: number = -1): v
   browser.tabs.move(tabID, { windowId: windowId, index });
   browser.tabs.update(tabID, { active: true });
 }
+type tab = { windowId: number; tabs: number[] };
+type tabsWindowList= tab[];
 
-let all_new_tabs: {windowId:number, new_tabs:number[]}[] = [];
 
+let ALL_NEW_TABS: tabsWindowList = [];
+let MOVED_TABS: tabsWindowList = [];
+
+function addTabToList( ​windowId:number,tabId:number, windowTabList:tabsWindowList){
+
+    let existing_window=windowTabList.findIndex((e)=>e.windowId==windowId)
+    if( existing_window >= 0 ){
+        tabId && windowTabList[existing_window].tabs.push(tabId)
+    }else {
+        ​windowId && tabId && windowTabList.push({windowId:​windowId,tabs:[tabId]})
+    }
+}
+function isTabInList(​windowId:number,tabId:number, windowTabList:tabsWindowList){
+    let existing_window=windowTabList.findIndex((e)=>e.windowId==windowId);
+    if( existing_window >= 0 ){
+        return windowTabList[existing_window].tabs
+    }
+    return false
+
+
+}
 function findTargetWindow(currnetWindowId: number, tabID: number, found_url: string): void {
   browser.windows.getAll({ populate: true }).then((windows) => {
     windows.some((window) => {
       if (window.tabs) {
         const foundTabs = window.tabs.filter((tab) => tab.url && tab.url.includes(found_url));
 
+        console.log(`foundTabs `, foundTabs, "\n found url", found_url);
+        console.log("currnetWindowId", currnetWindowId, "window.id", window.id);
         // Check if this window contains a YouTube tab
         const hasYouTubeTab = foundTabs.length > 0;
         const isCurrentWindow = currnetWindowId == window.id;
 
         if (hasYouTubeTab && !isCurrentWindow) {
           if (window.id) {
+            //console.log("Moving Tab");
+            
+            addTabToList(window.id, tabID,MOVED_TABS);
             moveTabToWindow(window.id, tabID, foundTabs[foundTabs.length - 1].index + 1);
             return true;
           }
@@ -49,12 +76,7 @@ browser.tabs.onUpdated.addListener(
 browser.tabs.onCreated.addListener((tab) => {
     //console.log('onCreated',tab);
     if (tab.title=="New Tab" && tab.​url=="about:newtab"){
-        let existing_window=all_new_tabs.findIndex((e)=>e.windowId==tab.windowId)
-        if( existing_window >= 0 ){
-            tab.id && all_new_tabs[existing_window].new_tabs.push(tab.id)
-        }else {
-            tab.​windowId && tab.id && all_new_tabs.push({windowId:tab.​windowId,new_tabs:[tab.​id]})
-        }
+
         //console.log(all_new_tabs);
     }
   check(tab);
