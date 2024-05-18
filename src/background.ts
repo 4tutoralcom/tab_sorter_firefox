@@ -191,6 +191,7 @@ if (typeof browser !== "undefined" && browser.runtime) {
     (message: Message, sender, sendResponse) => {
       if (message.action === "saveURLs") {
         URLS = message.urls || [];
+        URLS = URLS.filter(url=>url !== "")
         saveURLsToStorage(URLS);
       }
     }
