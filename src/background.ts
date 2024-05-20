@@ -11,22 +11,16 @@ class TabsGroup {
   constructor() {}
 
   public addTabToList(windowId: number, tabId: number) {
-    let existing_window = this.windowTabList.findIndex(
-      (e) => e.windowId == windowId
-    );
+    let existing_window = this.windowTabList.findIndex((e) => e.windowId == windowId);
     if (existing_window >= 0) {
       tabId && this.windowTabList[existing_window].tabs.push(tabId);
     } else {
-      windowId &&
-        tabId &&
-        this.windowTabList.push({ windowId: windowId, tabs: [tabId] });
+      windowId && tabId && this.windowTabList.push({ windowId: windowId, tabs: [tabId] });
     }
   }
 
   public isTabInList(windowId: number, tabId: number) {
-    let existing_window = this.windowTabList.findIndex(
-      (e) => e.windowId == windowId
-    );
+    let existing_window = this.windowTabList.findIndex((e) => e.windowId == windowId);
     if (existing_window >= 0) {
       return this.windowTabList[existing_window].tabs;
     }
@@ -43,15 +37,7 @@ getURLsFromStorage((all_urls) => {
   URLS = all_urls;
 });
 
-function moveTabToWindow(
-  windowId: number,
-  tab: browser.tabs.Tab,
-  index: number = -1
-): void {
-  console.log(MOVED_TABS.windowTabList);
-  console.log("windowId", windowId);
-  console.log("tab_ID", tab.id);
-  console.log("tab", tab.windowId);
+function moveTabToWindow(windowId: number, tab: browser.tabs.Tab, index: number = -1): void {
   if (!tab.id) {
     throw new Error("tab no id");
   }
@@ -69,89 +55,36 @@ function moveTabToWindow(
   }
 }
 
-function findTargetWindow(
-  currentWindowId: number,
-  tab: browser.tabs.Tab,
-  found_urls: string[],
-  found_url: string
-): void {
-  browser.windows.getAll({ populate: true }).then((windows) => {
-    windows.some((window) => {
-      if (window.tabs) {
-        let foundTabs = window.tabs.filter(
-          (tab) => tab.url && tab.url.includes(found_url)
-        );
-        if (foundTabs.length == 0) {
-          foundTabs = window.tabs.filter((tab) => {
-            return found_urls.some((found_url) => {
-              return tab.url && tab.url.includes(found_url);
-            });
-          });
-        }
+function tabsUrlInList(tab: browser.tabs.Tab): string | undefined {
+  let allUrls: string[] = URLS.map((url) => {
+    return url.split(",");
+  }, URLS).flat(1);
+  console.log(allUrls, tab.url);
 
-        console.log(`foundTabs `, foundTabs, "\n found urls", found_urls);
-        /*console.log("currentWindowId", currentWindowId, "window.id", window.id);*/
-        // Check if this window contains a YouTube tab
-        const hasYouTubeTab = foundTabs.length > 0;
-        const isCurrentWindow = currentWindowId == window.id;
-
-        if (hasYouTubeTab && !isCurrentWindow) {
-          if (window.id) {
-            moveTabToWindow(
-              window.id,
-              tab,
-              foundTabs[foundTabs.length - 1].index + 1
-            );
-            return true;
-          }
-          return false;
-        }
-      }
-      return false;
-    });
+  return allUrls.find((url) => {
+    return tab.url?.includes(url) || tab.title?.includes(url);
   });
 }
 
-browser.tabs.onUpdated.addListener(
-  (
-    tabId: number,
-    changeInfo: browser.tabs._OnUpdatedChangeInfo,
-    tab: browser.tabs.Tab
-  ) => {
-    //console.log('onUpdated',tab);
-    //let existing_window=all_new_tabs.findIndex((e)=>e.windowId==tab.windowId)
-    let passCheck = true;
-
-    if (passCheck && changeInfo.status === "complete") {
-      check(tab);
-    }
-  }
-);
-
-browser.tabs.onCreated.addListener((tab) => {
-  //console.log('onCreated',tab);
-  if (tab.title == "New Tab" && tab.url == "about:newtab") {
-    //console.log(all_new_tabs);
-  }
-  check(tab);
-});
-
-function check(tab: browser.tabs.Tab) {
-  URLS.some((url_group) => {
-    let found_urls = url_group.split(",");
-    return found_urls.some((url) => {
-      console.log("trying to find ", url);
-      if (
-        (tab.url && tab.url.includes(url)) ||
-        (tab.title && tab.title.includes(url))
-      ) {
-        if (tab.windowId && tab.id) {
-          findTargetWindow(tab.windowId, tab, found_urls, url);
-          return true;
+function findWindowFor(tab: browser.tabs.Tab, foundUrl: string): Promise<number | undefined> {
+  console.log("find tab not in", tab.windowId);
+  return browser.tabs.query({}).then((tabs) => {
+    tabs = tabs.filter((currentTab) => currentTab.windowId && currentTab.windowId != tab.windowId);
+    let foundWindow: number | undefined;
+    if (
+      tabs.some((tab) => {
+        console.log({ windowId: tab.windowId, idnex: tab.index, pinned: tab.pinned });
+        if (tab.url?.includes(foundUrl) || tab.title?.includes(foundUrl)) {
+          foundWindow = tab.windowId;
+          return tab.pinned;
         }
-      }
-      return false;
-    });
+        return false;
+      })
+    ) {
+      return foundWindow;
+    } else {
+      return foundWindow;
+    }
   });
 }
 
@@ -185,15 +118,57 @@ function getURLsFromStorage(callback: (urls: string[]) => void): void {
   }
 }
 
-// Handler for messages from popup
-if (typeof browser !== "undefined" && browser.runtime) {
-  browser.runtime.onMessage.addListener(
-    (message: Message, sender, sendResponse) => {
+let browserListeners = {
+  tabs: {
+    onUpdated: (tabId: number, changeInfo: browser.tabs._OnUpdatedChangeInfo, tab: browser.tabs.Tab) => {
+      if (changeInfo.status == "complete") {
+        const foundUrl = tabsUrlInList(tab);
+        if (foundUrl) {
+          console.log(foundUrl);
+          findWindowFor(tab, foundUrl).then((foundWindowID) => {
+            if (foundWindowID) {
+              browser.tabs.query({ windowId: foundWindowID }).then((tabs) => {
+                console.log(tabs);
+                let lastTabIndex = 0;
+                for (let index = tabs.length - 1; index >= 0; index--) {
+                  const foundTab = tabs[index];
+                  if (foundTab.url?.includes(foundUrl) || foundTab.title?.includes(foundUrl)) {
+                    foundTab.windowId && moveTabToWindow(foundTab.windowId,tab,foundTab.index+1)
+                    break;
+                  }
+                }
+                console.log(lastTabIndex);
+              });
+            }
+          });
+        }
+      }
+    },
+    onCreated: (tab: browser.tabs.Tab) => {
+      if (tab.title != "New Tab" && tab.url != "about:newtab") {
+        if (tab.status && tab.status == "complete") {
+          console.log("tab onCreated", tab);
+        }
+      }
+
+      //check(tab);
+    },
+  },
+  runtime: {
+    onMessage: (message: Message, _sender: any, _sendResponse: any) => {
       if (message.action === "saveURLs") {
         URLS = message.urls || [];
-        URLS = URLS.filter(url=>url !== "")
+        URLS = URLS.filter((url) => url !== "");
         saveURLsToStorage(URLS);
       }
-    }
-  );
+    },
+  },
+};
+
+if (typeof browser !== "undefined") {
+  if (browser.runtime) {
+    browser.runtime.onMessage.addListener(browserListeners.runtime.onMessage);
+  }
+  browser.tabs.onUpdated.addListener(browserListeners.tabs.onUpdated);
+  browser.tabs.onCreated.addListener(browserListeners.tabs.onCreated);
 }
